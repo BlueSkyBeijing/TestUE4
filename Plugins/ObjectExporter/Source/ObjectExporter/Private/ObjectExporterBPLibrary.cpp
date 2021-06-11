@@ -24,12 +24,12 @@
 #include "Rendering/SkeletalMeshLODRenderData.h"
 
 
-#define TEXTURE_PATH "Bin/Texture/"
-#define MATERIAL_PATH "Bin/Material/"
-#define STATICMESH_PATH "Bin/StaticMesh/"
-#define SKELETALMESH_PATH "Bin/SkeletalMesh/"
-#define SKELETON_PATH "Bin/SkeletalMesh/Skeleton/"
-#define ANIMATION_PATH "Bin/SkeletalMesh/Animation/"
+#define TEXTURE_PATH "REngine/Texture/"
+#define MATERIAL_PATH "REngine/Material/"
+#define STATICMESH_PATH "REngine/StaticMesh/"
+#define SKELETALMESH_PATH "REngine/SkeletalMesh/"
+#define SKELETON_PATH "REngine/SkeletalMesh/Skeleton/"
+#define ANIMATION_PATH "REngine/SkeletalMesh/Animation/"
 
 #define JSON_FILE_POSTFIX ".json"
 #define STATIC_MESH_BINARY_FILE_POSTFIX ".stm"
@@ -544,10 +544,16 @@ bool UObjectExporterBPLibrary::ExportMaterialInstance(const UMaterialInstance* M
 
                     *FileWriter << ResourceName;
 
+                    FString TempSavePath = FPaths::ProjectIntermediateDir();
                     FString SavePath = FPaths::ProjectSavedDir() + TEXTURE_PATH;
                     TArray<UObject*> ObjectsToExport;
                     ObjectsToExport.Add(Texture);
-                    AssetToolsModule.Get().ExportAssets(ObjectsToExport, *SavePath);
+                    AssetToolsModule.Get().ExportAssets(ObjectsToExport, *TempSavePath);
+                    // Cmd dir only \\ work
+                    IFileManager::Get().MakeDirectory(*SavePath);
+                    FString CmdString = FPaths::ProjectPluginsDir() + "ObjectExporter/texconv.exe -ft dds " + FPaths::ProjectIntermediateDir() + ResourcePath + ".TGA" + " -o " + SavePath;
+                    CmdString = CmdString.Replace(TEXT("/"), TEXT("\\"));
+                    system(TCHAR_TO_ANSI(*CmdString));
                 }
             }
 
@@ -749,17 +755,6 @@ bool UObjectExporterBPLibrary::ExportMap(UObject* WorldContextObject, const FStr
             *FileWriter << ResourceName;
             *FileWriter << AnimationName;
             *FileWriter << MaterialName;
-
-            TArray<UTexture*> MaterialTextures;
-            Component->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num);
-            FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
-            for (UTexture* Texture : MaterialTextures)
-            {
-                FString SavePath = FPaths::ProjectSavedDir() + TEXTURE_PATH;
-                TArray<UObject*> ObjectsToExport;
-                ObjectsToExport.Add(Texture);
-                AssetToolsModule.Get().ExportAssets(ObjectsToExport, *SavePath);
-            }
 
             FString SaveSkeletalMeshPath = FPaths::ProjectSavedDir() + SKELETALMESH_PATH + ResourceName + SKELETAL_MESH_BINARY_FILE_POSTFIX;
             ExportSkeletalMesh(Component->SkeletalMesh, SaveSkeletalMeshPath);
